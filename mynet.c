@@ -33,7 +33,10 @@ int listen_sock() {
 
     memset(&addr, 0, sin_len);      // 初始化结构体, 字节清零
     addr.sin_family = AF_INET;
-    addr.sin_port = htons(PORT);    // 网络是大端序`big-endian`, 计算机是小端序`little-endian`, 需要转换;
+    // htons()中， h：host，n：network, s：short int, l：long int
+    // hton -> host to network, s/l表示字节占用
+    // 网络是大端序`big-endian`, 计算机是小端序`little-endian`, 需要转换;
+    addr.sin_port = htons(PORT);    
     addr.sin_addr.s_addr = inet_addr(HOST); // 转化字符串地址为整数地址;
 
     int option = 1;     // 是否复用地址
