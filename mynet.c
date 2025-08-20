@@ -47,9 +47,12 @@ int listen_sock() {
     if (bind(sockfd, (struct sockaddr *)(&addr), sizeof(struct sockaddr_in)) < 0)
         err_exit("bind err");
 
-    // 监听socket
-    if (listen(sockfd, 128) < 0)
+    // 监听socket args: sockfd, backlog(半连接、全连接最大队列长度, 同时受系统参数 /proc/sys/net/core/somaxconn 限制)
+    if (listen(sockfd, 128) < 0){
+        close(sockfd);
+        sockfd = -1;
         err_exit("listen err");
+    }
     return sockfd;
 }
 
@@ -100,18 +103,18 @@ void* recv_thread(void *arg) {
     printf("create new client pid = %ld, host = %s:%d(%d)\n", pthread_self(), host, ntohs(cli_addr->sin_port), cli_addr->sin_port);
     int sockfd = csa->sock;
     char buf[BUFFER_SIZE];
-    pthread_detach(pthread_self());     // 线程转换成分离态, 线程退出时, 系统自动回收线程的资源(堆栈内存, 文件描述符等)
+    // 线程转换成分离态, 线程退出时, 系统自动回收线程的资源(堆栈内存, 文件描述符等)
+    pthread_detach(pthread_self());     
     while(1) {
         memset(buf, 0, BUFFER_SIZE);
         ssize_t n = recv(sockfd, buf, sizeof(buf), 0);
         if(n < 0) {
             perror("recv error");
-            free(csa);          // 释放内存
-            pthread_exit(NULL);
+            break;
         }
         printf("thread %d recv from [%s] msg: %s\n", sockfd, host, buf);
-
         // send(sockfd, "hello", 5, 0);
-
     }
+    free(csa);          // 释放内存
+    pthread_exit(NULL);
 }

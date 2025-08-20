@@ -31,7 +31,9 @@ void do_epoll() {
     // 创建 epoll_event 数组, 用以调用 epoll_wait 时, 内核把有事件通知的 fd 放进此数组中;
     struct epoll_event events[MAX_EVENTS];
     int fd_counts;  // epoll_wait 返回有事件通知的 fd 的数量;
-    // 设置 listen sock 事件
+    // 设置 listen sock 事件 由于第一个是 listen socket，因此采用默认的水平触发 EPOLL_LT
+    // LT(Level Triggered) 水平触发, 只要读缓冲区有数据、写缓存区有空间，就一直通知，无需设置 socket 为非阻塞
+    // ET(Edge Triggered) 边缘触发，就绪态发生改变时才通知一次, 需要设置 socket 为非阻塞
     ev.events = EPOLLIN;
     ev.data.fd = listen_fd;
     // 把 listen_fd 添加进 epoll 红黑树中监听
@@ -53,11 +55,11 @@ void do_epoll() {
                     err_exit("epoll accept sock error");
                 struct sockaddr_in *cli_addr = (struct sockaddr_in *)(&(csa.addr));
                 printf("accept new client: %s:%d\n", inet_ntoa(cli_addr->sin_addr), ntohs(cli_addr->sin_port));
-                // 设置 socket 为非阻塞
-                setnonblocking(csa.sock);
                 // 为新连接构造 epoll 监听事件
                 ev.data.fd = csa.sock;
                 ev.events = EPOLLIN | EPOLLOUT | EPOLLET;  // 监听 读/写 事件, 边缘触发
+                // 设置 socket 为非阻塞，因为此时采用边缘触发模式 EPOOLET
+                setnonblocking(csa.sock);
                 // 把新连接 fd 添加入 epoll 监听列表中
                 if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, csa.sock, &ev) == -1)
                     err_exit("epoll_ctl add new client error");
